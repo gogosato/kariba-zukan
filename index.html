@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>狩場図鑑 — レベル1から99へ</title>
+<meta name="description" content="FF11 レベル上げ狩場まとめ — 検索・絞り込みできるアプリ風データベース">
+<meta name="theme-color" content="#0d1420">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="狩場図鑑">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Noto+Serif+JP:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+  :root{
+    --ink:#0d1420;
+    --panel:#141d2e;
+    --panel2:#1a2439;
+    --line: rgba(196,168,102,0.18);
+    --gold:#c9a15a;
+    --gold-bright:#e8c883;
+    --parchment:#efe6cf;
+    --dim:#8892a6;
+    --crimson:#c1554a;
+    --crystal-fire:#e2673c;
+    --crystal-wind:#5fbf7a;
+    --crystal-earth:#b98a4f;
+    --crystal-water:#5b9fd6;
+    --crystal-thunder:#a874d1;
+    --crystal-ice:#7fd8d6;
+    --crystal-light:#e8d35f;
+    --crystal-dark:#7561b0;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; background:var(--ink); color:var(--parchment); font-family:'Noto Sans JP',sans-serif; }
+  body{
+    background:
+      radial-gradient(ellipse 120% 60% at 50% -10%, rgba(201,161,90,0.10), transparent 60%),
+      radial-gradient(ellipse 80% 50% at 90% 100%, rgba(91,159,214,0.08), transparent 60%),
+      var(--ink);
+    min-height:100vh;
+  }
+  .app{ max-width:560px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; position:relative; }
+
+  /* ---- Header ---- */
+  header{
+    position:sticky; top:0; z-index:30;
+    background:linear-gradient(180deg, rgba(13,20,32,0.98) 70%, rgba(13,20,32,0));
+    padding:16px 16px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  .title-row{ display:flex; align-items:baseline; gap:8px; margin-bottom:2px;}
+  .crest{ width:20px; height:20px; flex:none; }
+  h1{
+    font-family:'Cinzel','Noto Serif JP',serif; font-weight:700;
+    font-size:19px; letter-spacing:0.03em; color:var(--gold-bright); margin:0;
+  }
+  .sub{ font-size:11px; color:var(--dim); margin:0 0 12px; letter-spacing:0.04em; }
+
+  .searchbar{
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:9px 12px;
+  }
+  .searchbar svg{ flex:none; opacity:0.6; }
+  .searchbar input{
+    flex:1; background:none; border:none; outline:none; color:var(--parchment);
+    font-size:14.5px; font-family:'Noto Sans JP',sans-serif;
+  }
+  .searchbar input::placeholder{ color:#5c6579; }
+  .clear-btn{ background:none; border:none; color:var(--dim); font-size:16px; cursor:pointer; padding:2px 4px; display:none; }
+
+  .tabs{ display:flex; gap:6px; margin-top:10px; }
+  .tab{
+    flex:1; text-align:center; padding:8px 4px; border-radius:9px; font-size:12.5px;
+    font-weight:700; letter-spacing:0.02em; color:var(--dim); background:transparent;
+    border:1px solid var(--line); cursor:pointer; transition:all .15s;
+  }
+  .tab.active{ background:linear-gradient(180deg, rgba(201,161,90,0.22), rgba(201,161,90,0.08)); color:var(--gold-bright); border-color:rgba(201,161,90,0.5); }
+
+  .chiprow{ display:flex; gap:6px; overflow-x:auto; padding:10px 16px 4px; scrollbar-width:none; }
+  .chiprow::-webkit-scrollbar{ display:none; }
+  .chip{
+    flex:none; font-size:12px; padding:6px 12px; border-radius:999px; white-space:nowrap;
+    background:var(--panel); border:1px solid var(--line); color:var(--dim); cursor:pointer;
+  }
+  .chip.active{ background:rgba(201,161,90,0.18); border-color:var(--gold); color:var(--gold-bright); }
+
+  main{ flex:1; padding:6px 16px 90px; }
+
+  .result-count{ font-size:11.5px; color:var(--dim); margin:8px 2px 10px; letter-spacing:0.03em; }
+
+  /* ---- Cards ---- */
+  .card{
+    background:linear-gradient(180deg, var(--panel), var(--panel2));
+    border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden;
+  }
+  .card-head{ display:flex; align-items:center; gap:10px; padding:13px 14px; cursor:pointer; }
+  .lv-badge{
+    flex:none; font-family:'Cinzel',serif; font-weight:700; font-size:11px; color:var(--ink);
+    background:linear-gradient(180deg, var(--gold-bright), var(--gold));
+    padding:5px 8px; border-radius:8px; text-align:center; min-width:58px; line-height:1.1;
+  }
+  .lv-badge small{ display:block; font-size:8px; font-weight:600; opacity:0.75; letter-spacing:0.03em;}
+  .card-title{ flex:1; min-width:0; }
+  .card-title .area{ font-family:'Noto Serif JP',serif; font-weight:700; font-size:15px; color:var(--parchment); }
+  .card-title .monsters-preview{
+    font-size:11.5px; color:var(--dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .crystal-dots{ display:flex; gap:3px; flex:none; }
+  .cdot{ width:8px; height:8px; border-radius:50%; box-shadow: inset 0 0 2px rgba(0,0,0,.4);}
+  .chevron{ flex:none; color:var(--dim); transition:transform .2s; }
+  .card.open .chevron{ transform:rotate(180deg); }
+
+  .card-body{ display:none; padding:0 14px 16px; border-top:1px solid var(--line); }
+  .card.open .card-body{ display:block; }
+
+  .mtable{ width:100%; border-collapse:collapse; margin:12px 0 4px; font-size:12.5px; }
+  .mtable th{ text-align:left; color:var(--dim); font-weight:500; font-size:10.5px; padding:0 6px 5px 0; border-bottom:1px solid var(--line); letter-spacing:0.03em;}
+  .mtable td{ padding:5px 6px 5px 0; border-bottom:1px solid rgba(196,168,102,0.08); color:var(--parchment); }
+  .type-tag{ font-size:10px; padding:2px 6px; border-radius:6px; background:rgba(201,161,90,0.12); color:var(--gold-bright); white-space:nowrap; }
+
+  .spot-line{ display:flex; gap:8px; font-size:12.5px; color:#c9d1e0; margin:10px 0 4px; line-height:1.5;}
+  .spot-line .lbl{ color:var(--gold); flex:none; font-weight:700; font-size:11px; padding-top:1px;}
+  .maplink{ display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--crystal-water); text-decoration:none; margin:6px 0 2px;}
+  .maplink:active{ opacity:0.6; }
+
+  .accordion-mini{ margin-top:10px; border-top:1px dashed var(--line); padding-top:10px;}
+  .mini-head{ display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .mini-head span.lbl2{ font-size:11.5px; color:var(--gold-bright); font-weight:700; letter-spacing:0.02em; }
+  .mini-chevron{ color:var(--dim); font-size:12px; transition:transform .2s; }
+  .mini-body{ display:none; margin-top:8px; font-size:12px; color:#b9c2d4; line-height:1.9; white-space:pre-line; }
+  .mini.open .mini-body{ display:block; }
+  .mini.open .mini-chevron{ transform:rotate(180deg); }
+
+  .crystal-legend{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .crystal-legend span{ display:inline-flex; align-items:center; gap:4px; font-size:10.5px; color:var(--dim); }
+
+  /* ---- Job list ---- */
+  .job-group{ margin-bottom:18px; }
+  .job-group h3{
+    font-family:'Noto Serif JP',serif; font-size:13px; color:var(--gold); margin:0 0 8px 2px;
+    letter-spacing:0.03em; border-left:3px solid var(--gold); padding-left:8px;
+  }
+  .job-link{
+    display:block; background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:8px; text-decoration:none; color:var(--parchment);
+  }
+  .job-link .jt{ font-family:'Noto Serif JP',serif; font-weight:700; font-size:14px; color:var(--parchment); }
+  .job-link .jd{ font-size:11.5px; color:var(--dim); margin-top:4px; }
+  .job-link .jmeta{ font-size:10.5px; color:var(--gold); margin-top:6px; }
+
+  .empty{ text-align:center; padding:60px 20px; color:var(--dim); }
+  .empty .big{ font-size:15px; color:var(--gold-bright); margin-bottom:6px; font-family:'Noto Serif JP',serif;}
+
+  footer{
+    position:sticky; bottom:0; text-align:center; font-size:10px; color:#4a5164;
+    padding:8px 0 10px; background:linear-gradient(0deg, rgba(13,20,32,1), rgba(13,20,32,0));
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title-row">
+      <svg class="crest" viewBox="0 0 24 24" fill="none"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#c9a15a" opacity="0.9"/></svg>
+      <h1>狩場図鑑</h1>
+    </div>
+    <p class="sub">レベル1から99へ ― レベル上げ狩場まとめ（20年後のヴァナの地へ）</p>
+    <div class="searchbar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" placeholder="モンスター名・エリア名・種族・レベルで検索">
+      <button class="clear-btn" id="clearBtn">✕</button>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="spots">狩場データ</div>
+      <div class="tab" data-tab="jobs">ジョブ別記事</div>
+    </div>
+    <div class="chiprow" id="chipRow"></div>
+  </header>
+
+  <main id="main"></main>
+  <footer>データ出典：ff11.you-takai.com ／ 2024.08.27 初稿</footer>
+</div>
+
+<script>
+/* =========================================================
+   DATA
+   ========================================================= */
+const CRYSTAL_COLOR = {
+  "炎":"var(--crystal-fire)", "風":"var(--crystal-wind)", "土":"var(--crystal-earth)",
+  "水":"var(--crystal-water)", "雷":"var(--crystal-thunder)", "氷":"var(--crystal-ice)",
+  "光":"var(--crystal-light)", "闇":"var(--crystal-dark)"
+};
+
+const TIERS = [
+  {
+    range:[1,16], label:"Lv1〜16",
+    spots:[
+      {
+        area:"南グスタベルグ", lvmin:1, lvmax:16,
+        monsters:[["Land Crab","5〜6","アクアン類"],["Rock Lizard","5〜8","リザード類"],["Goblin Thug","5〜8","獣人類"],["Goblin Weaver","5〜8","獣人類"]],
+        spot:"バストゥークからダングルフの涸れ谷までの間", map:null,
+        crystals:["炎","風","土","水"],
+        drops:"火打石／蜂蜜／トレントの球根／ワイルドオニオン／蜂の巣のかけら",
+        area_tag:"「戦闘：エリア別」オリジナルエリア2『南グスタベルグ』",
+        unity:"アクアン類・アモルフ類・プラントイド類・ヴァーミン類・バード類・リザード類 各種討伐"
+      },
+      {
+        area:"西サルタバルタ", lvmin:1, lvmax:16,
+        monsters:[["Carrion Crow","2〜6","バード類"],["Crawler","3〜8","ヴァーミン類"],["Goblin系","3〜6","獣人類"],["Yagudo系","4〜8","獣人類"]],
+        spot:"ウィンダス水の区を出てからアウトポスト周辺", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-61-map01.png",
+        crystals:["炎","風","土"],
+        drops:"蜂蜜／マンドラゴラの四葉／コルネット／ユタンガの硫黄／ヤグードの数珠／蜂の巣のかけら",
+        area_tag:"「戦闘：エリア別」オリジナルエリア3『西サルタバルタ』",
+        unity:"プラントイド類・ヴァーミン類・バード類 各種討伐"
+      }
+    ]
+  },
+  {
+    range:[15,24], label:"Lv15〜24",
+    spots:[
+      {
+        area:"バルクルム砂丘", lvmin:15, lvmax:24,
+        monsters:[["Snipper","18〜22","アクアン類"],["Damselfly","20〜23","ヴァーミン類"],["Thread Leech","21〜25","アモルフ類"]],
+        spot:"Outpost裏H-7の木々のあたり", map:"https://ff11.you-takai.com/wp-content/uploads/2022/06/ff11-story-of-adventure-06-map01.png",
+        crystals:["炎","風","土","雷","水"],
+        drops:"—",
+        area_tag:"「戦闘：エリア別」オリジナルエリア1『バルクルム砂丘』",
+        unity:"アクアン類・アモルフ類・ヴァーミン類 各種討伐"
+      },
+      {
+        area:"ブブリム半島", lvmin:15, lvmax:24,
+        monsters:[["Zu","20〜23","バード類"],["Carnivorous Crawler","20〜23","ヴァーミン類"],["Bull Dhalmel","20〜24","ビースト類"]],
+        spot:"マウラ前から東側の海岸方面のあたり", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-61-map02.png",
+        crystals:["炎","土"],
+        drops:"—",
+        area_tag:"「戦闘：エリア別」オリジナルエリア3『ブブリム半島』",
+        unity:"ヴァーミン類・ビースト類・バード類 各種討伐"
+      }
+    ]
+  },
+  {
+    range:[21,38], label:"Lv21〜38",
+    spots:[
+      {
+        area:"バタリア丘陵", lvmin:21, lvmax:36,
+        monsters:[["Clipper","23〜25","アクアン類"],["Ba","25〜28","バード類"],["Goblin Bounty Hunter","30〜36","獣人類"]],
+        spot:"ジュノ上層から出て右手沿いに進んだ海岸のあたり", map:"https://ff11.you-takai.com/wp-content/uploads/2022/07/ff11-story-of-adventure-10-map01.png",
+        crystals:["炎","雷","水"], drops:"—",
+        area_tag:"「戦闘：エリア別」オリジナルエリア2『バタリア丘陵』",
+        unity:"アクアン類・バード類 各種討伐"
+      },
+      {
+        area:"クフィム島", lvmin:22, lvmax:28,
+        monsters:[["Dark Bats","25〜27","バード類"],["Glow Bat","27〜29","バード類"],["Clipper","28〜29","アクアン類"],["Giant Ranger","28〜30","獣人類"],["Giant Ascetic","28〜30","獣人類"],["Giant Hunter","28〜30","獣人類"],["Giant Trapper","28〜30","獣人類"]],
+        spot:"Survival Guide（デルクフの塔入口）周辺。コウモリは夜間のみ。夜間はスケルトン族Wightに注意（Lv25以降は戦士タイプのみ狙うのが無難）", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-311-map01.png",
+        crystals:["風","水","氷"], drops:"コウモリの翼",
+        area_tag:"—",
+        unity:"アクアン類・バード類 各種討伐"
+      },
+      {
+        area:"シャクラミの地下迷宮", lvmin:22, lvmax:31,
+        monsters:[["Caterchipillar","29〜31","ヴァーミン類"],["Goblin Shaman","31〜34","獣人類"],["Goblin Smithy","31〜34","獣人類"],["Goblin Furrier","31〜34","獣人類"],["Goblin Pathfinder","31〜34","獣人類"]],
+        spot:"ブブリム半島から入って最初の広場付近の通路を拠点に", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-53-map02.png",
+        crystals:["炎","土","雷"], drops:"—",
+        area_tag:"「戦闘：エリア別」オリジナルエリア3『シャクラミの地下迷宮』",
+        unity:"ヴァーミン類 討伐"
+      },
+      {
+        area:"ルフェーゼ野", lvmin:27, lvmax:38,
+        monsters:[["Miner Bee","31〜34","ヴァーミン類"],["Crimson Knight Crab","33〜36","アクアン類"],["Tavnazian Sheep","33〜37","ビースト類"],["Bugard","34〜37","リザード類"],["Orcish Brawler","35〜38","獣人類"],["Orcish Beastrider","35〜38","獣人類"],["Orcish Nightrider","35〜38","獣人類"],["Orcish Impaler","35〜38","獣人類"]],
+        spot:"タブナジア地下壕2FのI-6テンキー3から出てすぐの橋付近から、その先の通路を抜けたH-9〜10あたりの広場", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-311-map02.png",
+        crystals:["風","土","水","炎"], drops:"蜂蜜／蜂の巣のかけら／大羊の毛皮",
+        area_tag:"「戦闘：エリア別」プロマシアエリア1『ルフェーゼ野』",
+        unity:"ヴァーミン類・アクアン類・ビースト類・リザード類 各種討伐"
+      }
+    ]
+  },
+  {
+    range:[30,49], label:"Lv30〜49",
+    spots:[
+      {
+        area:"ビビキー湾", lvmin:30, lvmax:37,
+        monsters:[["Island Rarab","34〜36","ビースト類"],["Marine Dhalmel","34〜37","ビースト類"],["Raven","36〜38","バード類"]],
+        spot:"Survival Guide（乗船場）から東側の崖上I-7周辺", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-53-map03.png",
+        crystals:["炎","土"], drops:"野兎の毛皮",
+        area_tag:"「戦闘：エリア別」プロマシアエリア2『ビビキー湾』",
+        unity:"ビースト類・バード類 各種討伐"
+      },
+      {
+        area:"ソロムグ原野", lvmin:32, lvmax:36,
+        monsters:[["Evil Weapon","36〜38","アルカナ類"]],
+        spot:"かつては人気の狩場だったが、抽選NMポップのため今は優先度低め", map:null,
+        crystals:["風"], drops:"—",
+        area_tag:"「戦闘：エリア別」オリジナルエリア3『ソロムグ原野』",
+        unity:"アルカナ類 討伐"
+      },
+      {
+        area:"海蛇の岩窟", lvmin:33, lvmax:38,
+        monsters:[["Ironshell","37〜40","アクアン類"],["Ghast","38〜41","アンデッド類"]],
+        spot:"ノーグ前F-3〜G-5周辺", map:"https://ff11.you-takai.com/wp-content/uploads/2022/11/ff11-story-of-adventure-72-map01.png",
+        crystals:["水","土"], drops:"—",
+        area_tag:"「戦闘：エリア別」ジラートエリア2『海蛇の岩窟』",
+        unity:"—"
+      },
+      {
+        area:"東アルテパ", lvmin:33, lvmax:41,
+        monsters:[["Sand Beetle","36〜40","ヴァーミン類"],["Desert Dhalmel","39〜44","ビースト類"]],
+        spot:"I-6周辺", map:"https://ff11.you-takai.com/wp-content/uploads/2022/07/ff11-story-of-adventure-16-map01.png",
+        crystals:["土"], drops:"甲虫の甲殻",
+        area_tag:"—",
+        unity:"ビースト類・ヴァーミン類 各種討伐"
+      },
+      {
+        area:"ガルレージュ要塞", lvmin:36, lvmax:44,
+        monsters:[["Siege Bat","40〜43","バード類"],["Borer Beetle","41〜44","ヴァーミン類"]],
+        spot:"最初の階段から十字路のあたり（GoVページ2：Siege Bat×4、Borer Beetle×2）", map:null,
+        crystals:["風","土"], drops:"コウモリの翼／甲虫の甲殻",
+        area_tag:"「戦闘：エリア別」オリジナルエリア3『ガルレージュ要塞』",
+        unity:"ヴァーミン類・バード類 各種討伐"
+      },
+      {
+        area:"ヨアトル大森林", lvmin:36, lvmax:46,
+        monsters:[["Worker Crawler","43〜46","ヴァーミン類"],["Master Coeurl","47〜50","ビースト類"]],
+        spot:"F-9テレポイント周辺", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-53-map04.png",
+        crystals:["土","雷"], drops:"—",
+        area_tag:"「戦闘：エリア別」ジラートエリア2『ヨアトル大森林』",
+        unity:"ビースト類・ヴァーミン類 各種討伐"
+      },
+      {
+        area:"ミザレオ海岸", lvmin:37, lvmax:49,
+        monsters:[["Bigclaw","45〜48","アクアン類"],["Makara","46〜49","アクアン類"]],
+        spot:"I-6周辺の川の中", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-55-map01.png",
+        crystals:["水"], drops:"—",
+        area_tag:"「戦闘：エリア別」プロマシアエリア1『ミザレオ海岸』",
+        unity:"—"
+      }
+    ]
+  },
+  {
+    range:[40,60], label:"Lv40〜60",
+    spots:[
+      {
+        area:"西アルテパ砂漠", lvmin:40, lvmax:48,
+        monsters:[["Desert Beetle","46〜51","ヴァーミン類"]],
+        spot:"G-7〜H-7あたりの山沿い", map:"https://ff11.you-takai.com/wp-content/uploads/2022/07/ff11-story-of-adventure-10-map09.png",
+        crystals:["土"], drops:"甲虫の甲殻",
+        area_tag:"—", unity:"ヴァーミン類 討伐"
+      },
+      {
+        area:"クロウラーの巣", lvmin:41, lvmax:48,
+        monsters:[["Soldier Crawler","47〜49","ヴァーミン類"]],
+        spot:"1枚目MAPのH-8から移動した先MAPのI-9通路のあたり", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-61-map03.png",
+        crystals:["土"], drops:"—",
+        area_tag:"「戦闘：エリア別」オリジナルエリア2『クロウラーの巣』", unity:"—"
+      },
+      {
+        area:"流砂洞", lvmin:46, lvmax:54,
+        monsters:[["Sand Spider","51〜55","ヴァーミン類"],["Helm Beetle","51〜58","ヴァーミン類"]],
+        spot:"東アルテパ砂漠J-7から入った先J-3〜J-5周辺", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-53-map05.png",
+        crystals:["土"], drops:"○の石印（曜日・天候）／甲虫の甲殻",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『流砂洞』", unity:"ヴァーミン類 討伐"
+      },
+      {
+        area:"クロウラーの巣", lvmin:48, lvmax:53,
+        monsters:[["Rumble Crawler","53〜55","ヴァーミン類"]],
+        spot:"1枚目MAPのH-8から移動した先MAPのG-7テンキー1もしくはG-8テンキー9のくぼみを拠点に", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-61-map04.png",
+        crystals:["土"], drops:"—",
+        area_tag:"「戦闘：エリア別」オリジナルエリア2『クロウラーの巣』", unity:"—"
+      },
+      {
+        area:"クフタルの洞門", lvmin:48, lvmax:60,
+        monsters:[["Robber Crab","60〜63","アクアン類"]],
+        spot:"西アルテパから入ってすぐJ-6付近の通路", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-61-map05.png",
+        crystals:["水"], drops:"○の石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『クフタルの洞門』", unity:"アクアン類 討伐"
+      }
+    ]
+  },
+  {
+    range:[50,62], label:"Lv50〜62",
+    spots:[
+      {
+        area:"流砂洞", lvmin:50, lvmax:57,
+        monsters:[["Sand Lizard","56〜59","リザード類"],["Antican Quaestor","62〜65","獣人類"],["Antican Triarius","62〜65","獣人類"],["Antican Antesignanus","62〜65","獣人類"]],
+        spot:"西アルテパ砂漠D-12から入った先I-9〜I-12周辺", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-311-map03.png",
+        crystals:["土","闇"], drops:"○の石印（曜日・天候）／トカゲの皮",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『流砂洞』", unity:"リザード類 討伐"
+      },
+      {
+        area:"バフラウ段丘", lvmin:50, lvmax:65,
+        monsters:[["Lesser Colibri","63〜65","バード類"],["Aht Urhgan Attercop","64〜65","ヴァーミン類"],["Fomor Bard","63〜64","アンデッド類"],["Fomor Beastmaster","63〜65","アンデッド類"],["Fomor's Bats","58〜60","バード類"]],
+        spot:"アルザビから出て最初の広場H-10テンキー8あたりの通路を拠点に", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-51-map01.png",
+        crystals:["風","土","闇"], drops:"○の石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」アトルガンエリア『バフラウ段丘』", unity:"アンデッド類・ヴァーミン類・バード類 各種討伐"
+      },
+      {
+        area:"ボヤーダ樹", lvmin:52, lvmax:61,
+        monsters:[["Robber Crab","62〜66","アクアン類"]],
+        spot:"1枚目マップG-10あたり", map:"https://ff11.you-takai.com/wp-content/uploads/2022/07/ff11-story-of-adventure-13-map03.png",
+        crystals:["水"], drops:"○の石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『ボヤーダ樹』", unity:"アクアン類 討伐"
+      },
+      {
+        area:"カダーバの浮沼", lvmin:57, lvmax:62,
+        monsters:[["Treant Sapling","61〜63","プラントイド類"],["Caedarva Leech","63〜65","アモルフ類"],["Marsh Murre","64〜68","バード類"]],
+        spot:"ナシュモの西側出口から出てすぐE-11〜12あたり", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-311-map04.png",
+        crystals:["土","水","炎"], drops:"○の石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」アトルガンエリア『カダーバの浮沼』", unity:"プラントイド類・アモルフ類・バード類 各種討伐"
+      }
+    ]
+  },
+  {
+    range:[60,74], label:"Lv60〜74",
+    spots:[
+      {
+        area:"テリガン岬", lvmin:60, lvmax:67,
+        monsters:[["Beach Bunny","62〜65","ビースト類"],["Robber Crab","64〜67","アクアン類"],["Terror Pugil","66〜70","アクアン類"]],
+        spot:"I-9テンキー2の洞窟入口あたり", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-61-map06.png",
+        crystals:["土","水"], drops:"○の石印（曜日・天候）／野兎の毛皮",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『テリガン岬』", unity:"アクアン類・ビースト類 各種討伐"
+      },
+      {
+        area:"バフラウ段丘", lvmin:62, lvmax:71,
+        monsters:[["Colibri","71〜73","バード類"],["Date Eruca","72〜73","ヴァーミン類"]],
+        spot:"アトルガン白門H-7から出て、F-8テンキー3のあたりの通路を拠点に", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-311-map05.png",
+        crystals:["風","炎"], drops:"○の石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」アトルガンエリア『バフラウ段丘』", unity:"ヴァーミン類・バード類 各種討伐"
+      },
+      {
+        area:"ボヤーダ樹", lvmin:63, lvmax:77,
+        monsters:[["Steelshell","73〜76","アクアン類"],["Darter","75〜78","ヴァーミン類"],["Blood Ball","75〜78","アモルフ類"]],
+        spot:"Home PointがあるマップF-8の滝を下りた先のマップH-6あたり", map:"https://ff11.you-takai.com/wp-content/uploads/2022/07/ff11-story-of-adventure-21-map03.png",
+        crystals:["風","水"], drops:"○の石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『ボヤーダ樹』", unity:"アクアン類・アモルフ類・ヴァーミン類 各種討伐"
+      },
+      {
+        area:"怨念洞", lvmin:64, lvmax:73,
+        monsters:[["Tormentor","75〜79","リザード類"]],
+        spot:"ヨアトル大森林J-7から入って入り口付近", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-51-map02.png",
+        crystals:["炎"], drops:"○の石印（曜日・天候）／トカゲの皮",
+        area_tag:"「戦闘：エリア別」ジラートエリア2『怨念洞』", unity:"リザード類 討伐"
+      },
+      {
+        area:"テリガン岬", lvmin:65, lvmax:74,
+        monsters:[["Sand Cockatrice","71〜74","バード類"],["Greater Manticore","76〜81","ビースト類"]],
+        spot:"J-8テンキー1の洞窟入口あたり。Lv65以上の北側エリア境界はマンティコアがメインなので打たれ弱いジョブは注意", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-61-map07.png",
+        crystals:["土","風"], drops:"○の石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『テリガン岬』", unity:"バード類・ビースト類 各種討伐"
+      },
+      {
+        area:"ツェールン鉱山", lvmin:65, lvmax:74,
+        monsters:[["Colliery Bat","75〜77","バード類"],["Soot Crab","76〜78","アクアン類"],["Burrower Worm","77〜79","アモルフ類"]],
+        spot:"鉱山内の南側全域（GoVページ3：Colliery Bat×5、Soot Crab×2／ページ4：Colliery Bat×5、Burrower Worm×2）", map:null,
+        crystals:["風","土","水"], drops:"○の石印（曜日・天候）／コウモリの翼／火打石／ツェールンの煤／亜鉛鉱",
+        area_tag:"「戦闘：エリア別」オリジナルエリア2『ツェールン鉱山』", unity:"アクアン類・アモルフ類・バード類 各種討伐"
+      }
+    ]
+  },
+  {
+    range:[71,95], label:"Lv71〜95",
+    spots:[
+      {
+        area:"カダーバの浮沼", lvmin:71, lvmax:77,
+        monsters:[["Spongilla Fly","78〜79","ヴァーミン類"],["Heraldic Imp","78〜82","デーモン類"]],
+        spot:"アズーフ島監視哨の北K-8あたり", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-311-map06.png",
+        crystals:["風","闇"], drops:"○の石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」アトルガンエリア『カダーバの浮沼』", unity:"ヴァーミン類 討伐"
+      },
+      {
+        area:"外ホルトト遺跡", lvmin:73, lvmax:81,
+        monsters:[["Thorn Bat","82〜84","バード類"],["Fuligo","84〜85","アモルフ類"]],
+        spot:"西サルタバルタF-4の塔から入ってI-6の隠し扉を抜けた先F-6〜G-7の通路あたり（GoVページ8：Thorn Bat×5、Fuligo×1）", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-51-map03.png",
+        crystals:["風","水"], drops:"○の石印/上位石印（曜日・天候）／コウモリの翼",
+        area_tag:"「戦闘：エリア別」オリジナルエリア3『外ホルトト遺跡』", unity:"アモルフ類・バード類 各種討伐"
+      },
+      {
+        area:"ミザレオ海岸", lvmin:76, lvmax:82,
+        monsters:[["Seaboard Vulture","83〜84","バード類"]],
+        spot:"G-7テンキー9周辺（Survival Guide近く）", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-317-map01.png",
+        crystals:["風"], drops:"—",
+        area_tag:"「戦闘：エリア別」プロマシアエリア1『ミザレオ海岸』", unity:"バード類 討伐"
+      },
+      {
+        area:"コロロカの洞門", lvmin:77, lvmax:88,
+        monsters:[["Lacerator","87〜90","アクアン類"]],
+        spot:"西アルテパ砂漠M-8から入ってすぐ、E-6〜G-8通路にかけて", map:"https://ff11.you-takai.com/wp-content/uploads/2022/11/ff11-story-of-adventure-70-map01.png",
+        crystals:["水"], drops:"○の石印/上位石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」ジラートエリア2『コロロカの洞門』", unity:"アクアン類 討伐"
+      },
+      {
+        area:"シャクラミの地下迷宮", lvmin:78, lvmax:86,
+        monsters:[["Warren Bat","86〜88","バード類"],["Crypterpillar","87〜88","ヴァーミン類"]],
+        spot:"タロンギ大峡谷から入ったマップJ-8〜K-9の広場（GoVページ8：Warren Bat×3、Crypterpillar×3）", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-51-map04.png",
+        crystals:["風","土"], drops:"○の石印/上位石印（曜日・天候）／コウモリの翼",
+        area_tag:"「戦闘：エリア別」オリジナルエリア3『シャクラミの地下迷宮』", unity:"ヴァーミン類・バード類 各種討伐"
+      },
+      {
+        area:"ガルレージュの要塞", lvmin:78, lvmax:93,
+        monsters:[["Donjon Bat","91〜93","バード類"],["Fortalice Bats","92〜94","バード類"],["Warden Beetle","95〜96","ヴァーミン類"]],
+        spot:"入口から一番近い穴を落ちた先のマップG-6の通路あたり", map:"https://ff11.you-takai.com/wp-content/uploads/2022/08/ff11-story-of-adventure-27-map01.png",
+        crystals:["風","土"], drops:"○の石印/上位石印（曜日・天候）／コウモリの翼／甲虫の甲殻",
+        area_tag:"「戦闘：エリア別」オリジナルエリア3『ガルレージュ要塞』", unity:"ヴァーミン類・バード類 各種討伐"
+      }
+    ]
+  },
+  {
+    range:[81,99], label:"Lv81〜99",
+    spots:[
+      {
+        area:"ダングルフの涸れ谷", lvmin:81, lvmax:90,
+        monsters:[["Trimmer","90〜92","アクアン類"],["Natty Gibbon","92〜93","ビースト類"]],
+        spot:"I-3テンキー7あたりの通路端あたり（GoVページ8：Trimmer×5、Natty Gibbon×2）", map:"https://ff11.you-takai.com/wp-content/uploads/2022/08/ff11-story-of-adventure-31-map01.png",
+        crystals:["雷","水"], drops:"○の石印/上位石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」オリジナルエリア2『ダングルフの涸れ谷』", unity:"アクアン類・ビースト類 各種討伐"
+      },
+      {
+        area:"ブンカール浦[S]", lvmin:84, lvmax:90,
+        monsters:[["Duriumshell","92〜93","アクアン類"]],
+        spot:"H-7テンキー8〜9あたり（H-6テンキー3あたりの橋を拠点にすると安全）", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-311-map07.png",
+        crystals:["水"], drops:"○の石印/上位石印（曜日・天候）",
+        area_tag:"—", unity:"アクアン類 討伐"
+      },
+      {
+        area:"ケイザック古戦場", lvmin:85, lvmax:99,
+        monsters:[["Blanched Mandragora","100","プラントイド類"]],
+        spot:"西アドゥリンからケイザック古戦場へ出てすぐ左、J-9までの間。柔らかく倒しやすくLv85〜86でも10チェーン以上が狙える", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-51-map05.jpg",
+        crystals:["土"], drops:"○の石印/上位石印（曜日・天候）",
+        area_tag:"—", unity:"プラントイド類 討伐"
+      },
+      {
+        area:"ヤッセの狩り場", lvmin:85, lvmax:99,
+        monsters:[["Pinetorum","100","プラントイド類"]],
+        spot:"K-7海岸近く（魔導剣士取得クエストの花があるところ）", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-53-map06.jpg",
+        crystals:["土"], drops:"○の石印/上位石印（曜日・天候）",
+        area_tag:"—", unity:"プラントイド類 討伐"
+      },
+      {
+        area:"フェ・イン", lvmin:88, lvmax:94,
+        monsters:[["Balayang","95〜97","バード類"]],
+        spot:"1階J-7テンキー3（Home Pointの北側小部屋先）の通路を拠点に両側の小部屋から", map:"https://ff11.you-takai.com/wp-content/uploads/2022/09/ff11-story-of-adventure-39-map01.png",
+        crystals:["風"], drops:"○の石印/上位石印（曜日・天候）／コウモリの翼",
+        area_tag:"「戦闘：エリア別」オリジナルエリア4『フェ・イン』", unity:"バード類 討伐"
+      },
+      {
+        area:"ララ水道", lvmin:88, lvmax:99,
+        monsters:[["Depthswalker Crab","101〜102","アクアン類"],["Barnacle Crab","102","アクアン類"]],
+        spot:"H-6幅が広い通路付近（幅が狭い通路を拠点に）", map:"https://ff11.you-takai.com/wp-content/uploads/2022/10/ff11-story-of-adventure-55-map02.jpg",
+        crystals:["水"], drops:"○の石印/上位石印（曜日・天候）",
+        area_tag:"—", unity:"アクアン類 討伐"
+      },
+      {
+        area:"グスタフの洞門", lvmin:92, lvmax:99,
+        monsters:[["Boulder Eater","100〜105","アモルフ類"],["Pygmytoise","100〜103","リザード類"]],
+        spot:"ウォンテッドCL128で飛んだ先（青丸）のマップI-6〜J-7広場", map:"https://ff11.you-takai.com/wp-content/uploads/2024/08/ff11-story-of-adventure-322-map01.png",
+        crystals:["土"], drops:"○の石印/上位石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『グスタフの洞門』", unity:"アモルフ類・リザード類 各種討伐"
+      },
+      {
+        area:"ボヤーダ樹", lvmin:94, lvmax:99,
+        monsters:[["Mourning Crawler","103〜105","ヴァーミン類"],["Viseclaw","104〜???","アクアン類"],["Snaggletooth Peapuk","105〜???","ドラゴン類"]],
+        spot:"Home PointがあるマップF-8の滝を下りた先のマップF-9通路もしくはF-12通路を拠点（GoVページ8：Viseclaw×2、Snaggletooth Peapuk×2、Mourning Crawler×2／レベルはLv80台の経験値テーブルによる仮定値）", map:"https://ff11.you-takai.com/wp-content/uploads/2022/08/ff11-story-of-adventure-35-map01.png",
+        crystals:["土","水","闇"], drops:"○の石印/上位石印（曜日・天候）",
+        area_tag:"「戦闘：エリア別」ジラートエリア1『ボヤーダ樹』", unity:"アクアン類・ヴァーミン類 各種討伐"
+      }
+    ]
+  }
+];
+
+const JOBS = [
+  {group:"スタンダードジョブ", items:[
+    {t:"戦士レベル1から50へ", d:"アトルガン皇国のワラーラ寺院にある魔笛を巡る一味との攻防を経て、レベル上げへ。", url:"https://ff11.you-takai.com/story-of-adventure-48/", date:"2022.10.04"},
+    {t:"モンクレベル1から99へ", d:"初期エクストラジョブ5つを取得したあと、新たなジョブでのレベル上げへ。", url:"https://ff11.you-takai.com/story-of-adventure-53/", date:"2022.10.15"},
+    {t:"白魔道士レベル21から50へ", d:"3国を回り正式に冒険者と認められたレルフィー、サポート黒魔道士のレベルを追いかける。", url:"https://ff11.you-takai.com/story-of-adventure-10/", date:"2022.07.05"},
+    {t:"黒魔道士、そしてチョコボ", d:"ギルガメッシュとの対面を経て、黒魔道士のレベル上げとチョコボにまつわる話。", url:"https://ff11.you-takai.com/story-of-adventure-06/", date:"2022.06.21"},
+    {t:"赤魔道士レベル1から99へ", d:"気分転換に赤魔道士のレベル上げへ。フェイス構成の紹介つき。", url:"https://ff11.you-takai.com/story-of-adventure-95/", date:"2023.03.25"},
+    {t:"シーフレベル1から99へ", d:"ジラートジョブを全取得したあと、思い入れのできた竜騎士に続きシーフを育成。", url:"https://ff11.you-takai.com/story-of-adventure-55/", date:"2022.10.20"}
+  ]},
+  {group:"エキストラジョブ", items:[
+    {t:"ナイトレベル1から99へ", d:"戦士に続き獣使いのレベル上げをこなした後、数日でナイトを99まで。", url:"https://ff11.you-takai.com/story-of-adventure-70/", date:"2022.11.24"},
+    {t:"暗黒騎士レベル1から99へ", d:"経験値キャンペーン中、踊り子修行と並行して暗黒騎士を育成。", url:"https://ff11.you-takai.com/story-of-adventure-60/", date:"2022.11.01"},
+    {t:"獣使いレベル1から99へ", d:"アビセアのトリガー取りで疲れた後、戦士のレベル上げ再開とあわせて。", url:"https://ff11.you-takai.com/story-of-adventure-69/", date:"2022.11.22"},
+    {t:"吟遊詩人レベル1から99へ", d:"レベル上げ用装備処分企画の第二弾。楽譜整理も兼ねて。", url:"https://ff11.you-takai.com/story-of-adventure-309/", date:"2024.07.14"},
+    {t:"狩人レベル1から99へ", d:"装備処分企画の第一弾。前衛系ジョブから着手。", url:"https://ff11.you-takai.com/story-of-adventure-307/", date:"2024.07.11"}
+  ]},
+  {group:"エキストラジョブ（ジラート）", items:[
+    {t:"侍レベル1から99へ", d:"経験値2倍キャンペーンに乗って暗黒騎士に続きハイペースで侍を育成。", url:"https://ff11.you-takai.com/story-of-adventure-61/", date:"2022.11.03"},
+    {t:"忍者レベル1から60へ", d:"闇の渦の内部調査から聖地ジ・タへ、物語と並行したレベル上げ。", url:"https://ff11.you-takai.com/story-of-adventure-16/", date:"2022.07.21"},
+    {t:"竜騎士レベル1から99へ", d:"アンバスケードとジョブポ稼ぎの息抜きに竜騎士のレベル上げへ。", url:"https://ff11.you-takai.com/story-of-adventure-75/", date:"2023.03.25"},
+    {t:"召喚士レベル1から99へ", d:"装備処分企画の第四弾。学者と装備を共用しつつ育成。", url:"https://ff11.you-takai.com/story-of-adventure-317/", date:"2024.08.08"}
+  ]},
+  {group:"エキストラジョブ（アトルガン）", items:[
+    {t:"青魔道士レベル1から99へ", d:"アドゥリンジョブを一気に取得後、まず青魔道士から着手。", url:"https://ff11.you-takai.com/story-of-adventure-111/", date:"2023.03.04"},
+    {t:"コルセアレベル1から99へ", d:"装備処分企画の第三弾。召喚士・学者と装備を比較しつつ選定。", url:"https://ff11.you-takai.com/story-of-adventure-311/", date:"2024.07.20"},
+    {t:"からくり士レベル1から99へ", d:"アドゥリンジョブ一括取得後に着手した育成記録。", url:"https://ff11.you-takai.com/story-of-adventure-112/", date:"2023.03.07"}
+  ]},
+  {group:"エキストラジョブ（アルタナ）", items:[
+    {t:"踊り子レベル1から99へ", d:"アルタナミッションで過去世界へ行けるようになり、踊り子と学者の取得へ奔走。", url:"https://ff11.you-takai.com/story-of-adventure-59/", date:"2022.10.29"},
+    {t:"学者レベル1から99へ", d:"装備処分企画の最終第五弾。残っていた最後のレベル1ジョブ。", url:"https://ff11.you-takai.com/story-of-adventure-321/", date:"2024.08.17"}
+  ]},
+  {group:"エキストラジョブ（アドゥリン）", items:[
+    {t:"風水士レベル1から99へ", d:"「カニがいる狩場だけで行く」という縛りを設けて挑戦。", url:"https://ff11.you-takai.com/story-of-adventure-72/", date:"2023.03.25"},
+    {t:"魔導剣士レベル1から99へ", d:"渡航免状を取得しオーヴェイル家のオクタヴィアンを訪ねるところから。", url:"https://ff11.you-takai.com/story-of-adventure-51/", date:"2023.03.25"}
+  ]}
+];
+
+/* =========================================================
+   STATE & RENDER
+   ========================================================= */
+let state = { tab:"spots", query:"", tierFilter:"all" };
+
+const mainEl = document.getElementById('main');
+const chipRow = document.getElementById('chipRow');
+const searchInput = document.getElementById('searchInput');
+const clearBtn = document.getElementById('clearBtn');
+
+function buildChips(){
+  chipRow.innerHTML = "";
+  if(state.tab !== "spots"){ chipRow.style.display="none"; return; }
+  chipRow.style.display="flex";
+  const chips = [{key:"all", label:"すべて"}].concat(TIERS.map(t=>({key:t.label, label:t.label})));
+  chips.forEach(c=>{
+    const el = document.createElement('div');
+    el.className = "chip" + (state.tierFilter===c.key ? " active":"");
+    el.textContent = c.label;
+    el.onclick = ()=>{ state.tierFilter = c.key; render(); };
+    chipRow.appendChild(el);
+  });
+}
+
+function matchesQuery(spot, q){
+  if(!q) return true;
+  q = q.trim().toLowerCase();
+  const hay = [
+    spot.area, spot.spot, spot.drops, spot.area_tag, spot.unity,
+    ...spot.monsters.flatMap(m=>[m[0], m[2], m[1]]),
+    String(spot.lvmin), String(spot.lvmax)
+  ].join(" ").toLowerCase();
+  return hay.includes(q);
+}
+
+function crystalDots(crystals){
+  return crystals.map(c=>`<span class="cdot" style="background:${CRYSTAL_COLOR[c]||'#666'}" title="${c}のクリスタル"></span>`).join("");
+}
+
+function renderSpots(){
+  let tiers = TIERS;
+  if(state.tierFilter !== "all"){
+    tiers = TIERS.filter(t=>t.label===state.tierFilter);
+  }
+  let cards = [];
+  tiers.forEach(tier=>{
+    tier.spots.forEach((spot, idx)=>{
+      if(matchesQuery(spot, state.query)){
+        cards.push({tier, spot, id: tier.label+"-"+idx+"-"+spot.area});
+      }
+    });
+  });
+
+  document.title = "狩場図鑑 — レベル1から99へ";
+
+  if(cards.length===0){
+    mainEl.innerHTML = `<div class="empty"><div class="big">見つかりませんでした</div>検索語やレベル帯を変えてお試しください</div>`;
+    return;
+  }
+
+  const countLabel = state.query ? `「${escapeHtml(state.query)}」の検索結果：${cards.length}件` : `${cards.length}件の狩場`;
+  let html = `<div class="result-count">${countLabel}</div>`;
+
+  cards.forEach(({spot, id})=>{
+    const monsterPreview = spot.monsters.map(m=>m[0]).join(" / ");
+    const rows = spot.monsters.map(m=>`
+      <tr><td>${m[0]}</td><td>Lv ${m[1]}</td><td><span class="type-tag">${m[2]}</span></td></tr>
+    `).join("");
+    const legend = spot.crystals.map(c=>`<span><span class="cdot" style="background:${CRYSTAL_COLOR[c]}"></span>${c}</span>`).join("");
+    html += `
+    <div class="card" data-id="${id}">
+      <div class="card-head" onclick="toggleCard('${id}')">
+        <div class="lv-badge">Lv${spot.lvmin}<small>〜${spot.lvmax}</small></div>
+        <div class="card-title">
+          <div class="area">${spot.area}</div>
+          <div class="monsters-preview">${monsterPreview}</div>
+        </div>
+        <div class="crystal-dots">${crystalDots(spot.crystals)}</div>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="card-body">
+        <table class="mtable">
+          <tr><th>モンスター</th><th>レベル</th><th>種族</th></tr>
+          ${rows}
+        </table>
+        <div class="spot-line"><span class="lbl">狩場</span><span>${spot.spot}</span></div>
+        ${spot.map ? `<a class="maplink" href="${spot.map}" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+          場所をMAPで見る</a>` : ``}
+        <div class="crystal-legend">${legend}</div>
+        <div class="accordion-mini" onclick="toggleMini(event, '${id}-eminence')">
+          <div class="mini" id="mini-${id}-eminence">
+            <div class="mini-head"><span class="lbl2">エミネンス目標（エリア固有・ユニティ）</span><span class="mini-chevron">▾</span></div>
+            <div class="mini-body">戦利品：${spot.drops}
+エリア別：${spot.area_tag}
+ユニティ：${spot.unity}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+  mainEl.innerHTML = html;
+}
+
+function renderJobs(){
+  document.title = "ジョブ別レベル上げ記事 — 狩場図鑑";
+  const q = state.query.trim().toLowerCase();
+  let html = "";
+  let total = 0;
+  JOBS.forEach(g=>{
+    const items = g.items.filter(it => !q || (it.t+it.d).toLowerCase().includes(q));
+    if(items.length===0) return;
+    total += items.length;
+    html += `<div class="job-group"><h3>${g.group}</h3>`;
+    items.forEach(it=>{
+      html += `<a class="job-link" href="${it.url}" target="_blank" rel="noopener">
+        <div class="jt">${it.t}</div>
+        <div class="jd">${it.d}</div>
+        <div class="jmeta">${it.date}</div>
+      </a>`;
+    });
+    html += `</div>`;
+  });
+  if(total===0){
+    mainEl.innerHTML = `<div class="empty"><div class="big">見つかりませんでした</div>検索語を変えてお試しください</div>`;
+    return;
+  }
+  mainEl.innerHTML = `<div class="result-count">全22ジョブのレベル上げ記事：${total}件</div>` + html;
+}
+
+function render(){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.tab));
+  buildChips();
+  clearBtn.style.display = state.query ? "inline-block" : "none";
+  if(state.tab==="spots") renderSpots(); else renderJobs();
+}
+
+function toggleCard(id){
+  const card = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+  if(card) card.classList.toggle('open');
+}
+function toggleMini(ev, id){
+  ev.stopPropagation();
+  const mini = document.getElementById('mini-'+id);
+  if(mini) mini.classList.toggle('open');
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{ state.tab = t.dataset.tab; state.tierFilter="all"; render(); });
+});
+searchInput.addEventListener('input', (e)=>{ state.query = e.target.value; render(); });
+clearBtn.addEventListener('click', ()=>{ searchInput.value=""; state.query=""; render(); searchInput.focus(); });
+
+render();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
